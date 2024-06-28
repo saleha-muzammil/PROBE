@@ -46,7 +46,7 @@
     - [ ] Run tests in an Ubuntu Docker container.
     - [ ] Run tests in a really old Ubuntu Docker container.
   - [ ] Write a CI script that uses Nix to install dependencies and run the Justfiles.
-- [ ] Write microbenchmarking
+- [ ] Write microbenchmarking (saleha is working on this).
   - [ ] Run performance test-cases in two steps: one with just libprobe record and one with just transcription.
   - [ ] Write interesting performance tests, using `benchmark/workloads.py` as inspiration.
   - [ ] Run the benchmarks with Hyperfine, in Containerexec, in a Justfile, storing the result as a CSV.
