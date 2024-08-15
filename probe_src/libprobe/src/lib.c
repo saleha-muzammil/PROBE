@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <ftw.h>
+#include <threads.h>
+#include <pthread.h>
 
 /*
  * pycparser cannot parse type-names as function-arguments (as in `va_arg(var_name, type_name)`)
@@ -32,6 +34,8 @@
  * To GCC these macros are defined as type names.
  * */
 #define __type_mode_t mode_t
+#define __type_charp char*
+#define __type_charpp char**
 
 /*
  * Likewise, ther is some bug with pycparser unable to parse inline funciton pointers.
@@ -58,11 +62,11 @@ static __thread bool __thread_inited = false;
 
 /* #include "fd_table.c" */
 
-#include "../include/prov_ops.h"
+#include "../include/libprobe/prov_ops.h"
 
 #define ARENA_USE_UNWRAPPED_LIBC
 #define ARENA_PERROR
-#include "../../arena/arena.c"
+#include "../arena/include/arena.h"
 
 #include "global_state.c"
 
@@ -88,7 +92,9 @@ static pthread_mutex_t init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void maybe_init_thread() {
     if (unlikely(!__thread_inited)) {
-        EXPECT(== 0, pthread_mutex_unlock(&init_lock));
+        DEBUG("Acquiring mutex");
+        EXPECT(== 0, pthread_mutex_lock(&init_lock));
+        DEBUG("Acquired mutex");
         bool was_process_inited = __process_inited;
         prov_log_disable();
         {
@@ -102,7 +108,7 @@ static void maybe_init_thread() {
             DEBUG("Initializing thread");
             init_thread_global_state();
         }
-        EXPECT(== 0, pthread_mutex_lock(&init_lock));
+        EXPECT(== 0, pthread_mutex_unlock(&init_lock));
         prov_log_enable();
         __thread_inited = true;
 
@@ -111,6 +117,8 @@ static void maybe_init_thread() {
                 init_exec_epoch_op_code,
                 {.init_exec_epoch = init_current_exec_epoch()},
                 {0},
+                0,
+                0,
             };
             prov_log_try(op);
             prov_log_record(op);
@@ -120,6 +128,8 @@ static void maybe_init_thread() {
             init_thread_op_code,
             {.init_thread = init_current_thread()},
             {0},
+            0,
+            0,
         };
         prov_log_try(op);
         prov_log_record(op);
@@ -136,17 +146,32 @@ static void reinit_process() {
     reinit_thread_global_state();
     prov_log_enable();
 
+    struct Op init_process_op = {
+        init_process_op_code,
+        {.init_process = init_current_process()},
+        {0},
+        0,
+        0,
+    };
+    prov_log_try(init_process_op);
+    prov_log_record(init_process_op);
+
     struct Op init_exec_op = {
         init_exec_epoch_op_code,
         {.init_exec_epoch = init_current_exec_epoch()},
         {0},
+        0,
+        0,
     };
     prov_log_try(init_exec_op);
     prov_log_record(init_exec_op);
+
     struct Op init_thread_op = {
         init_thread_op_code,
         {.init_thread = init_current_thread()},
         {0},
+        0,
+        0,
     };
     prov_log_try(init_thread_op);
     prov_log_record(init_thread_op);
